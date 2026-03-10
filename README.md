@@ -1,47 +1,52 @@
 # Answer AI
 
-`Answer AI`는 PC에서 실행하고, QR 코드로 휴대폰에서 접속해 앱(PWA)처럼 사용할 수 있는 AI 에이전트입니다.
+보안 우선(local-first)으로 동작하는 로컬 AI 에이전트입니다.
 
-## 주요 기능
-- `answer ai in`: 설치/초기화 + provider/API/보안 설정
-- `answer ai onboard`: 에이전트 실행 + 모바일 원격 제어 서버 시작
-- `finance <ticker>`: 주식 시세 조회(민감정보 기능 활성화 필요)
-- `video generate <prompt>` / `video edit <input_url> <instruction>`: 영상 생성/편집 API 요청
-- `browse <url>`, `game <name>`, `manage status`
+## 핵심 원칙
+- 기본값은 **로컬 전용 모드**입니다.
+- 기본값은 **외부 네트워크 차단**입니다.
+- API 키는 `~/.answer_ai/config.json`에만 저장되고 파일 권한을 `600`으로 강제합니다.
+- 모바일 URL은 토큰 기반으로 보호됩니다.
 
-## 빠른 시작
+## 명령어
+- `./answer ai in`: 설치/설정
+- `./answer ai onboard`: 실행
+
+## 빠른 시작 (최고 보안: 로컬 전용)
 ```bash
-./answer ai in \
-  --provider openai \
-  --api openai=YOUR_OPENAI_KEY \
-  --enable-sensitive-data \
-  --video-provider runway \
-  --video-api runway=YOUR_VIDEO_API_KEY
-
+./answer ai in --local-only
 ./answer ai onboard
 ```
 
-## 모바일 앱(PWA) 접속
-- `onboard` 실행 시 토큰이 포함된 모바일 URL/QR이 출력됩니다.
-- 모바일 브라우저에서 URL을 열고 **홈 화면에 추가**를 누르면 앱처럼 실행할 수 있습니다.
-- URL에 토큰이 없거나 틀리면 접근이 차단됩니다.
+이 모드에서는:
+- `browse`는 `localhost/127.0.0.1`만 허용
+- `game` 외부 사이트 차단
+- `finance`, `video` 외부 API 호출 차단
 
-## 영상 API 설정
-기본 endpoint는 예시값이며 Provider 문서에 맞춰 변경하세요.
-
+## 휴대폰 접속이 필요할 때 (LAN 허용)
 ```bash
-./answer ai in \
-  --video-provider runway \
-  --video-api runway=YOUR_KEY \
-  --video-endpoint runway=https://api.runwayml.com/v1/video/jobs
+./answer ai in --allow-lan-mobile
+./answer ai onboard
 ```
 
-## 주의사항
-- 주식/금융 정보는 참고용이며 실제 투자 판단은 반드시 직접 검증하세요.
-- 영상 생성/편집 API는 과금될 수 있습니다.
-- API 키는 `~/.answer_ai/config.json`에 저장됩니다. 파일 권한을 보호하세요.
-- 모바일 URL(토큰 포함)을 공유하면 원격 제어가 가능하므로 반드시 비공개로 관리하세요.
+> 주의: LAN 허용 시 같은 네트워크 사용자에게 노출될 수 있으므로 토큰 URL을 절대 공유하지 마세요.
 
-## 설정 파일
-- `~/.answer_ai/config.json`
-- 주요 항목: `apis`, `video.apis`, `video.endpoints`, `safety.allow_sensitive_data`, `mobile_bridge.auth_token`
+## 외부 API가 정말 필요할 때만
+```bash
+./answer ai in \
+  --allow-external-network \
+  --enable-sensitive-data \
+  --api openai=YOUR_KEY \
+  --video-provider runway \
+  --video-api runway=YOUR_VIDEO_KEY
+```
+
+- `finance <ticker>`: 외부 시세 조회 (예: `finance aapl.us`)
+- `video generate <prompt>`
+- `video edit <input_url> <instruction>`
+
+## 보안 권장사항
+- 평소에는 `--local-only` 유지
+- 외부 API 사용 직후 다시 `--local-only`로 되돌리기
+- 모바일 토큰 URL 공유 금지
+- 민감 데이터 입력 최소화
