@@ -160,20 +160,114 @@ class MobileCommandHandler(BaseHTTPRequestHandler):
 
     def _app_html(self, token: str) -> str:
         return f"""
-<!doctype html><html lang='ko'><head>
-<meta charset='utf-8'/><meta name='viewport' content='width=device-width,initial-scale=1'/>
-<title>Answer AI Local Mobile</title>
-<link rel='manifest' href='/manifest.json?token={token}' />
-<style>body{{font-family:sans-serif;margin:16px}}input,button{{font-size:16px;padding:10px}}input{{width:100%}}button{{margin-top:8px;width:100%}}</style>
-</head><body>
-<h3>Answer AI (Local)</h3>
-<p>로컬 장치 제어용입니다. 토큰 URL은 비공개로 유지하세요.</p>
-<form action='/send' method='get'>
-<input type='hidden' name='token' value='{token}' />
-<input name='cmd' placeholder='browse http://localhost:3000' />
-<button type='submit'>명령 전송</button></form>
-<script>if('serviceWorker' in navigator){{navigator.serviceWorker.register('/sw.js?token={token}');}}</script>
-</body></html>
+<!doctype html>
+<html lang='ko'>
+<head>
+  <meta charset='utf-8'/>
+  <meta name='viewport' content='width=device-width,initial-scale=1'/>
+  <meta name='theme-color' content='#0b1020'/>
+  <title>Answer AI Local Mobile</title>
+  <link rel='manifest' href='/manifest.json?token={token}' />
+  <style>
+    :root {{
+      --bg: #0b1020;
+      --panel: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.18);
+      --text: #e8edf8;
+      --muted: #aeb8cf;
+      --primary: #4f7cff;
+      --primary-2: #7aa2ff;
+      --ok: #22c55e;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      min-height: 100dvh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(1200px 500px at 20% -10%, #1d2f66 0%, #0b1020 45%), var(--bg);
+      color: var(--text);
+      padding: 18px;
+    }}
+    .card {{
+      max-width: 560px;
+      margin: 0 auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.28);
+    }}
+    .title {{ font-size: 22px; margin: 0; font-weight: 700; letter-spacing: .2px; }}
+    .subtitle {{ color: var(--muted); margin: 8px 0 16px; font-size: 14px; line-height: 1.45; }}
+    .row {{ display: grid; gap: 10px; }}
+    input {{
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      padding: 13px 14px;
+      font-size: 15px;
+      outline: none;
+    }}
+    input::placeholder {{ color: #95a3c7; }}
+    .btn {{
+      border: 0;
+      border-radius: 12px;
+      padding: 13px 14px;
+      font-size: 15px;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    }}
+    .chips {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }}
+    .chip {{
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      color: #d8e1f8;
+      background: rgba(255,255,255,.05);
+      cursor: pointer;
+      user-select: none;
+    }}
+    .footer {{ margin-top: 14px; color: var(--muted); font-size: 12px; }}
+    .secure {{ color: var(--ok); font-weight: 700; }}
+  </style>
+</head>
+<body>
+  <main class='card'>
+    <h1 class='title'>Answer AI Local</h1>
+    <p class='subtitle'>로컬 장치 제어용 모바일 인터페이스입니다. 토큰 URL을 공유하지 말고, 필요 시에만 LAN 모드를 사용하세요.</p>
+    <form class='row' action='/send' method='get'>
+      <input type='hidden' name='token' value='{token}' />
+      <input id='cmd' name='cmd' placeholder='예: browse http://localhost:3000' />
+      <button class='btn' type='submit'>명령 전송</button>
+    </form>
+
+    <div class='chips'>
+      <button class='chip' onclick="setCmd('manage status')" type='button'>manage status</button>
+      <button class='chip' onclick="setCmd('browse http://localhost:3000')" type='button'>browse local</button>
+      <button class='chip' onclick="setCmd('finance aapl.us')" type='button'>finance</button>
+      <button class='chip' onclick="setCmd('video generate cinematic skyline')" type='button'>video generate</button>
+    </div>
+
+    <p class='footer'><span class='secure'>● SECURE</span> token-auth + local-first policy enabled.</p>
+  </main>
+
+  <script>
+    function setCmd(v) {{
+      document.getElementById('cmd').value = v;
+      document.getElementById('cmd').focus();
+    }}
+    if ('serviceWorker' in navigator) {{
+      navigator.serviceWorker.register('/sw.js?token={token}');
+    }}
+  </script>
+</body>
+</html>
 """
 
     def do_GET(self) -> None:  # noqa: N802
