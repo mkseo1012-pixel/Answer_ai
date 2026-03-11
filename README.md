@@ -9,6 +9,34 @@
 - API 키는 `~/.answer_ai/config.json`에만 저장되고 파일 권한을 `600`으로 강제합니다.
 - 모바일 URL은 토큰 기반으로 보호됩니다.
 
+## 설치 방법 (Answer AI)
+1. 저장소를 내려받습니다.
+```bash
+git clone <REPO_URL>
+cd Answer_ai
+```
+
+2. 실행 권한을 확인합니다.
+```bash
+chmod +x answer
+```
+
+3. 초기 설정을 실행합니다.
+```bash
+./answer ai in --local-only
+```
+
+4. 에이전트를 실행합니다.
+```bash
+./answer ai onboard
+```
+
+5. (선택) 어디서나 `answer`로 실행하고 싶다면 심볼릭 링크를 추가합니다.
+```bash
+sudo ln -sf "$(pwd)/answer" /usr/local/bin/answer
+answer ai onboard
+```
+
 ## 명령어
 - `./answer ai in`: 설치/설정
 - `./answer ai onboard`: 실행
