@@ -46,6 +46,31 @@ answer ai onboard
 ./answer ai in --onboard-now
 ```
 
+
+## Windows에서 `'answer'은(는) 내부 또는 외부 명령` 오류가 날 때
+아래 오류는 Windows에서 실행 파일/배치 파일이 없거나 PATH에 등록되지 않았을 때 발생합니다.
+
+```text
+'answer'은(는) 내부 또는 외부 명령, 실행할 수 있는 프로그램, 또는 배치 파일이 아닙니다.
+```
+
+해결 방법:
+1. 저장소 루트(`answer.py`와 `answer.cmd`가 있는 폴더)에서 실행
+```bat
+answer ai in
+answer ai onboard
+```
+
+2. 또는 Python으로 직접 실행
+```bat
+py -3 answer.py ai in
+py -3 answer.py ai onboard
+```
+
+3. 어느 폴더에서나 쓰려면 저장소 경로를 PATH에 추가
+- 예: `C:\Users\<YOU>\Answer_ai`
+- 새 터미널을 연 뒤 `answer ai in` 재시도
+
 ## 명령어
 - `./answer ai in`: 설치/설정
 - `./answer ai onboard`: 실행
@@ -161,4 +186,12 @@ answer ai onboard
   --api openai=YOUR_KEY \
   --video-provider runway \
   --video-api runway=YOUR_VIDEO_KEY
+```
+
+
+### Windows command not recognized
+If `answer` is not recognized in Command Prompt, run from the repo folder (where `answer.cmd` exists) or use:
+```bat
+py -3 answer.py ai in
+py -3 answer.py ai onboard
 ```
