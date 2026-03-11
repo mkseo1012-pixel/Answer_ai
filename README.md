@@ -102,3 +102,53 @@ answer ai onboard
 - 외부 API 사용 직후 다시 `--local-only`로 되돌리기
 - 모바일 토큰 URL 공유 금지
 - 민감 데이터 입력 최소화
+
+---
+
+## English Guide
+
+Answer AI is a local-first, security-focused agent that runs on your PC and can be controlled from mobile (token-protected URL).
+
+### Install
+```bash
+git clone <REPO_URL>
+cd Answer_ai
+chmod +x answer
+./answer ai in --local-only
+./answer ai onboard
+```
+
+### Optional: run as global command
+```bash
+sudo ln -sf "$(pwd)/answer" /usr/local/bin/answer
+answer ai onboard
+```
+
+### Core commands
+- `./answer ai in`: initialize/configure
+- `./answer ai onboard`: run the agent
+- `./answer ai proactive`: create one proactive AI message
+- `./answer ai cron-install --every-minutes 15`: install proactive cron
+- `./answer ai cron-remove`: remove proactive cron
+
+### Security defaults
+- Local-only mode enabled by default
+- External network blocked by default
+- API keys stored in `~/.answer_ai/config.json` with permission `600`
+- Mobile control URL protected by token
+
+### Enable mobile LAN access (same network)
+```bash
+./answer ai in --allow-lan-mobile
+./answer ai onboard
+```
+
+### Enable external APIs only when needed
+```bash
+./answer ai in \
+  --allow-external-network \
+  --enable-sensitive-data \
+  --api openai=YOUR_KEY \
+  --video-provider runway \
+  --video-api runway=YOUR_VIDEO_KEY
+```
