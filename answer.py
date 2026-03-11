@@ -7,12 +7,15 @@ import json
 import os
 import queue
 import secrets
+import shutil
 import socket
+import subprocess
 import threading
 import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +24,8 @@ from typing import Any
 
 CONFIG_DIR = Path.home() / ".answer_ai"
 CONFIG_PATH = CONFIG_DIR / "config.json"
+PROACTIVE_LOG_PATH = CONFIG_DIR / "proactive_messages.jsonl"
+CRON_MARKER = "# answer_ai_proactive"
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "provider": "openai",
@@ -47,6 +52,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "bind_host": "127.0.0.1",
         "port": 8765,
         "auth_token": "",
+    },
+    "proactive": {
+        "enabled": True,
+        "interval_minutes": 15,
     },
 }
 
@@ -143,6 +152,84 @@ def post_json(url: str, payload: dict[str, Any], token: str) -> dict[str, Any]:
         return {"status": "accepted", "raw": body[:300]}
 
 
+def make_proactive_message() -> str:
+    now = datetime.now(timezone.utc)
+    tips = [
+        "오늘 일정 확인해볼까요? manage status 로 현재 환경 점검 가능합니다.",
+        "로컬 보안 점검 시간입니다. 토큰 URL 공유 여부를 다시 확인하세요.",
+        "개발 루틴 시작 제안: 먼저 중요한 작업 1개를 정하고 집중해보세요.",
+        "잠깐 스트레칭하세요. 생산성은 체력에서 시작됩니다.",
+        "필요하면 browse http://localhost:3000 으로 로컬 대시보드를 열어보세요.",
+    ]
+    idx = (now.hour * 60 + now.minute) % len(tips)
+    return tips[idx]
+
+
+def append_proactive_message(message: str) -> None:
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    payload = {"ts": datetime.now(timezone.utc).isoformat(), "message": message}
+    with PROACTIVE_LOG_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
+def read_proactive_since(offset: int) -> tuple[list[str], int]:
+    if not PROACTIVE_LOG_PATH.exists():
+        return [], 0
+    with PROACTIVE_LOG_PATH.open("r", encoding="utf-8") as f:
+        f.seek(offset)
+        chunk = f.read()
+        new_offset = f.tell()
+    lines = [line.strip() for line in chunk.splitlines() if line.strip()]
+    messages: list[str] = []
+    for line in lines:
+        try:
+            obj = json.loads(line)
+            messages.append(str(obj.get("message", "")))
+        except json.JSONDecodeError:
+            continue
+    return messages, new_offset
+
+
+def ensure_crontab_available() -> None:
+    if shutil.which("crontab") is None:
+        raise RuntimeError("crontab 명령을 찾을 수 없습니다. cron이 설치된 환경에서 실행하세요.")
+
+
+def get_crontab_lines() -> list[str]:
+    ensure_crontab_available()
+    proc = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    if proc.returncode != 0:
+        stderr = (proc.stderr or "").lower()
+        if "no crontab" in stderr:
+            return []
+        raise RuntimeError(proc.stderr.strip() or "crontab -l 실행 실패")
+    return proc.stdout.splitlines()
+
+
+def set_crontab_lines(lines: list[str]) -> None:
+    ensure_crontab_available()
+    body = "\n".join(lines).rstrip() + "\n"
+    subprocess.run(["crontab", "-"], input=body, text=True, check=True)
+
+
+def install_proactive_cron(minutes: int) -> None:
+    minutes = max(1, min(minutes, 59))
+    script = (Path(__file__).resolve())
+    cron_cmd = f"*/{minutes} * * * * /usr/bin/env python3 {script} ai proactive >> {CONFIG_DIR}/cron.log 2>&1 {CRON_MARKER}"
+    lines = [line for line in get_crontab_lines() if CRON_MARKER not in line]
+    lines.append(cron_cmd)
+    set_crontab_lines(lines)
+
+
+def remove_proactive_cron() -> bool:
+    lines = get_crontab_lines()
+    filtered = [line for line in lines if CRON_MARKER not in line]
+    if len(filtered) == len(lines):
+        return False
+    set_crontab_lines(filtered)
+    return True
+
+
 class MobileCommandHandler(BaseHTTPRequestHandler):
     command_queue: "queue.Queue[str]" = queue.Queue()
     auth_token: str = ""
@@ -169,72 +256,18 @@ class MobileCommandHandler(BaseHTTPRequestHandler):
   <title>Answer AI Local Mobile</title>
   <link rel='manifest' href='/manifest.json?token={token}' />
   <style>
-    :root {{
-      --bg: #0b1020;
-      --panel: rgba(255,255,255,0.08);
-      --border: rgba(255,255,255,0.18);
-      --text: #e8edf8;
-      --muted: #aeb8cf;
-      --primary: #4f7cff;
-      --primary-2: #7aa2ff;
-      --ok: #22c55e;
-    }}
+    :root {{ --bg:#0b1020; --panel:rgba(255,255,255,.08); --border:rgba(255,255,255,.18); --text:#e8edf8; --muted:#aeb8cf; --primary:#4f7cff; --primary-2:#7aa2ff; --ok:#22c55e; }}
     * {{ box-sizing: border-box; }}
-    body {{
-      margin: 0;
-      min-height: 100dvh;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: radial-gradient(1200px 500px at 20% -10%, #1d2f66 0%, #0b1020 45%), var(--bg);
-      color: var(--text);
-      padding: 18px;
-    }}
-    .card {{
-      max-width: 560px;
-      margin: 0 auto;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      padding: 18px;
-      box-shadow: 0 20px 40px rgba(0,0,0,.28);
-    }}
-    .title {{ font-size: 22px; margin: 0; font-weight: 700; letter-spacing: .2px; }}
-    .subtitle {{ color: var(--muted); margin: 8px 0 16px; font-size: 14px; line-height: 1.45; }}
-    .row {{ display: grid; gap: 10px; }}
-    input {{
-      width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(255,255,255,0.05);
-      color: var(--text);
-      padding: 13px 14px;
-      font-size: 15px;
-      outline: none;
-    }}
-    input::placeholder {{ color: #95a3c7; }}
-    .btn {{
-      border: 0;
-      border-radius: 12px;
-      padding: 13px 14px;
-      font-size: 15px;
-      font-weight: 700;
-      color: white;
-      cursor: pointer;
-      background: linear-gradient(135deg, var(--primary), var(--primary-2));
-    }}
-    .chips {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }}
-    .chip {{
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 7px 11px;
-      font-size: 12px;
-      color: #d8e1f8;
-      background: rgba(255,255,255,.05);
-      cursor: pointer;
-      user-select: none;
-    }}
-    .footer {{ margin-top: 14px; color: var(--muted); font-size: 12px; }}
-    .secure {{ color: var(--ok); font-weight: 700; }}
+    body {{ margin:0; min-height:100dvh; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:radial-gradient(1200px 500px at 20% -10%, #1d2f66 0%, #0b1020 45%),var(--bg); color:var(--text); padding:18px; }}
+    .card {{ max-width:560px; margin:0 auto; background:var(--panel); border:1px solid var(--border); backdrop-filter:blur(10px); border-radius:20px; padding:18px; box-shadow:0 20px 40px rgba(0,0,0,.28); }}
+    .title {{ font-size:22px; margin:0; font-weight:700; }} .subtitle {{ color:var(--muted); margin:8px 0 16px; font-size:14px; line-height:1.45; }}
+    .row {{ display:grid; gap:10px; }}
+    input {{ width:100%; border:1px solid var(--border); border-radius:12px; background:rgba(255,255,255,.05); color:var(--text); padding:13px 14px; font-size:15px; outline:none; }}
+    input::placeholder {{ color:#95a3c7; }}
+    .btn {{ border:0; border-radius:12px; padding:13px 14px; font-size:15px; font-weight:700; color:white; cursor:pointer; background:linear-gradient(135deg,var(--primary),var(--primary-2)); }}
+    .chips {{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }}
+    .chip {{ border:1px solid var(--border); border-radius:999px; padding:7px 11px; font-size:12px; color:#d8e1f8; background:rgba(255,255,255,.05); cursor:pointer; }}
+    .footer {{ margin-top:14px; color:var(--muted); font-size:12px; }} .secure {{ color:var(--ok); font-weight:700; }}
   </style>
 </head>
 <body>
@@ -246,25 +279,17 @@ class MobileCommandHandler(BaseHTTPRequestHandler):
       <input id='cmd' name='cmd' placeholder='예: browse http://localhost:3000' />
       <button class='btn' type='submit'>명령 전송</button>
     </form>
-
     <div class='chips'>
       <button class='chip' onclick="setCmd('manage status')" type='button'>manage status</button>
       <button class='chip' onclick="setCmd('browse http://localhost:3000')" type='button'>browse local</button>
       <button class='chip' onclick="setCmd('finance aapl.us')" type='button'>finance</button>
       <button class='chip' onclick="setCmd('video generate cinematic skyline')" type='button'>video generate</button>
     </div>
-
     <p class='footer'><span class='secure'>● SECURE</span> token-auth + local-first policy enabled.</p>
   </main>
-
   <script>
-    function setCmd(v) {{
-      document.getElementById('cmd').value = v;
-      document.getElementById('cmd').focus();
-    }}
-    if ('serviceWorker' in navigator) {{
-      navigator.serviceWorker.register('/sw.js?token={token}');
-    }}
+    function setCmd(v) {{ document.getElementById('cmd').value = v; document.getElementById('cmd').focus(); }}
+    if ('serviceWorker' in navigator) {{ navigator.serviceWorker.register('/sw.js?token={token}'); }}
   </script>
 </body>
 </html>
@@ -281,7 +306,6 @@ class MobileCommandHandler(BaseHTTPRequestHandler):
                 return
             self._write(HTTPStatus.OK, self._app_html(token))
             return
-
         if path == "/manifest.json":
             if not self._is_authorized():
                 self._write(HTTPStatus.FORBIDDEN, "invalid token", "text/plain")
@@ -297,14 +321,12 @@ class MobileCommandHandler(BaseHTTPRequestHandler):
             }
             self._write(HTTPStatus.OK, json.dumps(manifest), "application/manifest+json")
             return
-
         if path == "/sw.js":
             if not self._is_authorized():
                 self._write(HTTPStatus.FORBIDDEN, "invalid token", "text/plain")
                 return
             self._write(HTTPStatus.OK, "self.addEventListener('fetch', () => {});", "application/javascript")
             return
-
         if path == "/send":
             if not self._is_authorized():
                 self._write(HTTPStatus.FORBIDDEN, "invalid token", "text/plain")
@@ -316,7 +338,6 @@ class MobileCommandHandler(BaseHTTPRequestHandler):
             self.command_queue.put(cmd)
             self._write(HTTPStatus.OK, f"<p>전송 완료: {cmd}</p><a href='/app?token={token}'>돌아가기</a>")
             return
-
         self._write(HTTPStatus.NOT_FOUND, "not found", "text/plain")
 
     def log_message(self, fmt: str, *args: Any) -> None:
@@ -440,6 +461,35 @@ def maybe_print_qr(url: str) -> None:
     print(f"모바일 접속 URL: {url}")
 
 
+def cmd_proactive(args: argparse.Namespace) -> None:
+    _ = ensure_config()
+    message = args.message if args.message else make_proactive_message()
+    append_proactive_message(message)
+    print(f"[PROACTIVE] {message}")
+
+
+def cmd_cron_install(args: argparse.Namespace) -> None:
+    ensure_config()
+    try:
+        install_proactive_cron(args.every_minutes)
+        print(f"[CRON] proactive job 설치 완료: {args.every_minutes}분 간격")
+    except RuntimeError as exc:
+        print(f"[CRON] 설치 실패: {exc}")
+
+
+def cmd_cron_remove(args: argparse.Namespace) -> None:
+    ensure_config()
+    try:
+        removed = remove_proactive_cron()
+    except RuntimeError as exc:
+        print(f"[CRON] 제거 실패: {exc}")
+        return
+    if removed:
+        print("[CRON] proactive job 제거 완료")
+    else:
+        print("[CRON] 제거할 proactive job이 없습니다")
+
+
 def cmd_in(args: argparse.Namespace) -> None:
     config = ensure_config()
     if args.api:
@@ -468,8 +518,17 @@ def cmd_in(args: argparse.Namespace) -> None:
         config.setdefault("mobile_bridge", {})["bind_host"] = "0.0.0.0"
     if args.mobile_port:
         config.setdefault("mobile_bridge", {})["port"] = args.mobile_port
+    if args.cron_every_minutes:
+        config.setdefault("proactive", {})["interval_minutes"] = max(1, min(args.cron_every_minutes, 59))
 
     secure_write_config(config)
+    if args.install_cron_proactive:
+        try:
+            install_proactive_cron(config.get("proactive", {}).get("interval_minutes", 15))
+            print("[CRON] proactive job 자동 설치 완료")
+        except RuntimeError as exc:
+            print(f"[CRON] 자동 설치 실패: {exc}")
+
     show_precautions(config)
     print(f"\n설치/초기화 완료: {CONFIG_PATH}")
 
@@ -477,6 +536,7 @@ def cmd_in(args: argparse.Namespace) -> None:
 def cmd_onboard(args: argparse.Namespace) -> None:
     config = ensure_config()
     runtime = AgentRuntime(config=config)
+    proactive_offset = 0
 
     mobile_enabled = config.get("mobile_bridge", {}).get("enabled", True)
     if mobile_enabled:
@@ -502,10 +562,16 @@ def cmd_onboard(args: argparse.Namespace) -> None:
     print("예시) browse http://localhost:3000")
     print("예시) manage status")
     print("예시) finance aapl.us (외부 네트워크 허용 시)")
-    print("예시) video generate 샘플 프롬프트 (외부 네트워크 허용 시)\n")
+    print("예시) video generate 샘플 프롬프트 (외부 네트워크 허용 시)")
+    print("예시) cron은 `answer ai cron-install --every-minutes 15`\n")
 
     while True:
         try:
+            messages, proactive_offset = read_proactive_since(proactive_offset)
+            for msg in messages:
+                if msg:
+                    print(f"\n[AI-PROACTIVE] {msg}")
+
             if mobile_enabled:
                 try:
                     mobile_cmd = MobileCommandHandler.command_queue.get_nowait()
@@ -513,6 +579,7 @@ def cmd_onboard(args: argparse.Namespace) -> None:
                     runtime.execute(mobile_cmd)
                 except queue.Empty:
                     pass
+
             local_cmd = input("> ").strip()
             if local_cmd.lower() in {"exit", "quit"}:
                 print("Answer AI 종료")
@@ -542,10 +609,23 @@ def build_parser() -> argparse.ArgumentParser:
     in_cmd.add_argument("--local-only", action="store_true", help="로컬 전용 모드 강제(기본값)")
     in_cmd.add_argument("--enable-system-management", action="store_true")
     in_cmd.add_argument("--enable-sensitive-data", action="store_true")
+    in_cmd.add_argument("--cron-every-minutes", type=int, help="proactive cron 간격(분)")
+    in_cmd.add_argument("--install-cron-proactive", action="store_true", help="초기화 시 proactive cron 자동 설치")
     in_cmd.set_defaults(func=cmd_in)
 
     onboard_cmd = ai_sub.add_parser("onboard", help="Run Answer AI")
     onboard_cmd.set_defaults(func=cmd_onboard)
+
+    proactive_cmd = ai_sub.add_parser("proactive", help="Write one proactive AI message (for cron)")
+    proactive_cmd.add_argument("--message", help="수동 메시지 지정")
+    proactive_cmd.set_defaults(func=cmd_proactive)
+
+    cron_install_cmd = ai_sub.add_parser("cron-install", help="Install proactive cron job")
+    cron_install_cmd.add_argument("--every-minutes", type=int, default=15)
+    cron_install_cmd.set_defaults(func=cmd_cron_install)
+
+    cron_remove_cmd = ai_sub.add_parser("cron-remove", help="Remove proactive cron job")
+    cron_remove_cmd.set_defaults(func=cmd_cron_remove)
 
     return parser
 

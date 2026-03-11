@@ -12,6 +12,9 @@
 ## 명령어
 - `./answer ai in`: 설치/설정
 - `./answer ai onboard`: 실행
+- `./answer ai proactive`: AI 선제 메시지 1회 생성(크론에서 사용)
+- `./answer ai cron-install`: 선제 메시지 cron 등록
+- `./answer ai cron-remove`: 선제 메시지 cron 제거
 
 ## 빠른 시작 (최고 보안: 로컬 전용)
 ```bash
@@ -45,6 +48,26 @@
 - `finance <ticker>`: 외부 시세 조회 (예: `finance aapl.us`)
 - `video generate <prompt>`
 - `video edit <input_url> <instruction>`
+
+## AI가 먼저 말하게 하는 cron 설정
+```bash
+# 15분마다 AI 선제 메시지 생성 cron 등록
+./answer ai cron-install --every-minutes 15
+
+# 즉시 1회 실행 테스트
+./answer ai proactive
+
+# onboard 실행 시 [AI-PROACTIVE]로 자동 표시
+./answer ai onboard
+
+# 제거
+./answer ai cron-remove
+```
+
+또는 초기화 시 자동 설치:
+```bash
+./answer ai in --install-cron-proactive --cron-every-minutes 15
+```
 
 ## 보안 권장사항
 - 평소에는 `--local-only` 유지
