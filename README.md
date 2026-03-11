@@ -37,6 +37,15 @@ sudo ln -sf "$(pwd)/answer" /usr/local/bin/answer
 answer ai onboard
 ```
 
+
+## `answer ai in` 실행해도 아무 일 없는 것처럼 보일 때
+- 정상 동작입니다. `answer ai in`은 **설치/초기화만** 수행합니다.
+- 실제 실행은 `answer ai onboard`를 입력해야 시작됩니다.
+- 초기화 후 바로 실행하려면 아래처럼 사용하세요:
+```bash
+./answer ai in --onboard-now
+```
+
 ## 명령어
 - `./answer ai in`: 설치/설정
 - `./answer ai onboard`: 실행
@@ -126,6 +135,7 @@ answer ai onboard
 
 ### Core commands
 - `./answer ai in`: initialize/configure
+- `./answer ai in --onboard-now`: initialize and immediately start
 - `./answer ai onboard`: run the agent
 - `./answer ai proactive`: create one proactive AI message
 - `./answer ai cron-install --every-minutes 15`: install proactive cron

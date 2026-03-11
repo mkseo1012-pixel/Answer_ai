@@ -490,6 +490,13 @@ def cmd_cron_remove(args: argparse.Namespace) -> None:
         print("[CRON] 제거할 proactive job이 없습니다")
 
 
+def print_next_steps() -> None:
+    print("\n[다음 단계]")
+    print("- 이 명령(`answer ai in`)은 설치/초기화만 수행합니다.")
+    print("- 에이전트 실행: `./answer ai onboard`")
+    print("- PATH 등록 후 실행: `answer ai onboard`")
+
+
 def cmd_in(args: argparse.Namespace) -> None:
     config = ensure_config()
     if args.api:
@@ -531,6 +538,11 @@ def cmd_in(args: argparse.Namespace) -> None:
 
     show_precautions(config)
     print(f"\n설치/초기화 완료: {CONFIG_PATH}")
+    print_next_steps()
+
+    if args.onboard_now:
+        print("\n[INFO] --onboard-now 옵션으로 바로 실행합니다.\n")
+        cmd_onboard(argparse.Namespace())
 
 
 def cmd_onboard(args: argparse.Namespace) -> None:
@@ -611,6 +623,7 @@ def build_parser() -> argparse.ArgumentParser:
     in_cmd.add_argument("--enable-sensitive-data", action="store_true")
     in_cmd.add_argument("--cron-every-minutes", type=int, help="proactive cron 간격(분)")
     in_cmd.add_argument("--install-cron-proactive", action="store_true", help="초기화 시 proactive cron 자동 설치")
+    in_cmd.add_argument("--onboard-now", action="store_true", help="초기화 직후 에이전트를 바로 실행")
     in_cmd.set_defaults(func=cmd_in)
 
     onboard_cmd = ai_sub.add_parser("onboard", help="Run Answer AI")
