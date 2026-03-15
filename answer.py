@@ -252,41 +252,112 @@ class MobileCommandHandler(BaseHTTPRequestHandler):
 <head>
   <meta charset='utf-8'/>
   <meta name='viewport' content='width=device-width,initial-scale=1'/>
-  <meta name='theme-color' content='#0b1020'/>
-  <title>Answer AI Local Mobile</title>
+  <meta name='theme-color' content='#1d140a'/>
+  <title>Answer AI - Claw Mode</title>
   <link rel='manifest' href='/manifest.json?token={token}' />
   <style>
-    :root {{ --bg:#0b1020; --panel:rgba(255,255,255,.08); --border:rgba(255,255,255,.18); --text:#e8edf8; --muted:#aeb8cf; --primary:#4f7cff; --primary-2:#7aa2ff; --ok:#22c55e; }}
+    :root {{
+      --bg: #1b120a;
+      --bg2: #3a2413;
+      --panel: rgba(30,20,10,.88);
+      --line: #9a6b3a;
+      --text: #f7e8cc;
+      --muted: #d8bd95;
+      --gold: #d8a24f;
+      --gold2: #f0c878;
+      --safe: #5bd28f;
+    }}
     * {{ box-sizing: border-box; }}
-    body {{ margin:0; min-height:100dvh; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:radial-gradient(1200px 500px at 20% -10%, #1d2f66 0%, #0b1020 45%),var(--bg); color:var(--text); padding:18px; }}
-    .card {{ max-width:560px; margin:0 auto; background:var(--panel); border:1px solid var(--border); backdrop-filter:blur(10px); border-radius:20px; padding:18px; box-shadow:0 20px 40px rgba(0,0,0,.28); }}
-    .title {{ font-size:22px; margin:0; font-weight:700; }} .subtitle {{ color:var(--muted); margin:8px 0 16px; font-size:14px; line-height:1.45; }}
-    .row {{ display:grid; gap:10px; }}
-    input {{ width:100%; border:1px solid var(--border); border-radius:12px; background:rgba(255,255,255,.05); color:var(--text); padding:13px 14px; font-size:15px; outline:none; }}
-    input::placeholder {{ color:#95a3c7; }}
-    .btn {{ border:0; border-radius:12px; padding:13px 14px; font-size:15px; font-weight:700; color:white; cursor:pointer; background:linear-gradient(135deg,var(--primary),var(--primary-2)); }}
-    .chips {{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }}
-    .chip {{ border:1px solid var(--border); border-radius:999px; padding:7px 11px; font-size:12px; color:#d8e1f8; background:rgba(255,255,255,.05); cursor:pointer; }}
-    .footer {{ margin-top:14px; color:var(--muted); font-size:12px; }} .secure {{ color:var(--ok); font-weight:700; }}
+    body {{
+      margin: 0;
+      min-height: 100dvh;
+      font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 400px at 10% -20%, #5c3a1d 0%, transparent 65%),
+        radial-gradient(1200px 600px at 100% 0%, #3c2413 0%, transparent 60%),
+        linear-gradient(180deg, var(--bg2), var(--bg));
+      padding: 16px;
+    }}
+    .card {{
+      max-width: 560px;
+      margin: 0 auto;
+      border: 2px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 0 0 3px rgba(216,162,79,.18) inset, 0 18px 35px rgba(0,0,0,.4);
+      padding: 16px;
+    }}
+    .badge {{
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: var(--gold2);
+      font-size: 12px;
+      margin-bottom: 8px;
+      background: rgba(216,162,79,.12);
+    }}
+    .title {{ margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .4px; }}
+    .subtitle {{ margin: 7px 0 14px; color: var(--muted); font-size: 14px; line-height: 1.45; }}
+    .row {{ display: grid; gap: 10px; }}
+    input {{
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(0,0,0,.22);
+      color: var(--text);
+      padding: 12px;
+      font-size: 15px;
+      outline: none;
+    }}
+    input::placeholder {{ color: #c5a179; }}
+    .btn {{
+      border: 1px solid #7f5427;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 800;
+      color: #2b1b0d;
+      cursor: pointer;
+      background: linear-gradient(180deg, var(--gold2), var(--gold));
+    }}
+    .chips {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }}
+    .chip {{
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #f4dcb8;
+      background: rgba(216,162,79,.12);
+      cursor: pointer;
+    }}
+    .footer {{ margin-top: 12px; color: var(--muted); font-size: 12px; }}
+    .safe {{ color: var(--safe); font-weight: 700; }}
   </style>
 </head>
 <body>
   <main class='card'>
-    <h1 class='title'>Answer AI Local</h1>
-    <p class='subtitle'>로컬 장치 제어용 모바일 인터페이스입니다. 토큰 URL을 공유하지 말고, 필요 시에만 LAN 모드를 사용하세요.</p>
+    <span class='badge'>OPENCLAW STYLE UI</span>
+    <h1 class='title'>Answer AI - Claw Mode</h1>
+    <p class='subtitle'>레트로 액션 게임 감성으로 만든 모바일 컨트롤 화면입니다. 보안을 위해 토큰 URL은 공유하지 마세요.</p>
+
     <form class='row' action='/send' method='get'>
       <input type='hidden' name='token' value='{token}' />
       <input id='cmd' name='cmd' placeholder='예: browse http://localhost:3000' />
       <button class='btn' type='submit'>명령 전송</button>
     </form>
+
     <div class='chips'>
       <button class='chip' onclick="setCmd('manage status')" type='button'>manage status</button>
       <button class='chip' onclick="setCmd('browse http://localhost:3000')" type='button'>browse local</button>
       <button class='chip' onclick="setCmd('finance aapl.us')" type='button'>finance</button>
-      <button class='chip' onclick="setCmd('video generate cinematic skyline')" type='button'>video generate</button>
+      <button class='chip' onclick="setCmd('video generate pirate city skyline')" type='button'>video generate</button>
     </div>
-    <p class='footer'><span class='secure'>● SECURE</span> token-auth + local-first policy enabled.</p>
+
+    <p class='footer'><span class='safe'>● SECURE</span> token-auth + local-first policy enabled.</p>
   </main>
+
   <script>
     function setCmd(v) {{ document.getElementById('cmd').value = v; document.getElementById('cmd').focus(); }}
     if ('serviceWorker' in navigator) {{ navigator.serviceWorker.register('/sw.js?token={token}'); }}
@@ -294,6 +365,7 @@ class MobileCommandHandler(BaseHTTPRequestHandler):
 </body>
 </html>
 """
+
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
